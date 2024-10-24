@@ -583,7 +583,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, PythonConventionSe
         var isStream = conventions.StreamTypeName.Equals(returnType, StringComparison.OrdinalIgnoreCase);
         var returnTypeWithoutCollectionSymbol = GetReturnTypeWithoutCollectionSymbol(codeElement, returnType);
         var genericTypeForSendMethod = GetSendRequestMethodName(isVoid, isStream, codeElement.ReturnType.IsCollection, returnTypeWithoutCollectionSymbol, isEnum);
-        var newFactoryParameter = GetTypeFactory(isVoid, isStream, returnTypeWithoutCollectionSymbol, isEnum);
+        var newFactoryParameter = GetTypeFactory(isVoid, isStream, isEnum, returnTypeWithoutCollectionSymbol);
         var errorMappingVarName = NoneKeyword;
         if (codeElement.ErrorMappings.Any())
         {
@@ -646,6 +646,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, PythonConventionSe
     {
         if (inherits)
             writer.WriteLine("super().serialize(writer)");
+        _codeUsingWriter.WriteInternalImports(parentClass, writer);
         foreach (var otherProp in parentClass
                                         .GetPropertiesOfKind(CodePropertyKind.Custom)
                                         .Where(static x => !x.ExistsInBaseType && !x.ReadOnly)
@@ -808,10 +809,11 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, PythonConventionSe
             _ => "write_object_value",
         };
     }
-    private string GetTypeFactory(bool isVoid, bool isStream, string returnType, bool isEnum)
+    internal string GetTypeFactory(bool isVoid, bool isStream, bool isEnum, string returnType)
     {
         if (isVoid) return string.Empty;
-        if (isStream || conventions.IsPrimitiveType(returnType) || isEnum) return $" \"{returnType}\",";
+        if (isStream || isEnum) return $" \"{returnType}\",";
+        if (conventions.IsPrimitiveType(returnType)) return $" {returnType},";
         return $" {returnType},";
     }
     private string GetSendRequestMethodName(bool isVoid, bool isStream, bool isCollection, string returnType,
